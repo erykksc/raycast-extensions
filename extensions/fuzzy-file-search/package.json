@@ -18,12 +18,12 @@
       "mode": "view",
       "preferences": [
         {
-          "name": "includeDirectories",
-          "title": "Include Directories",
-          "label": "Search for both directories and files",
-          "description": "If enabled, the search results will include files and directories. If disabled, the search will only look for files.",
+          "name": "includeOnlyFiles",
+          "title": "Include Only Files",
+          "label": "Search only for files",
+          "description": "If enabled, the search results will only include files. If disabled, the search will look for files and directories.",
           "type": "checkbox",
-          "default": true,
+          "default": false,
           "required": false
         },
         {
@@ -31,6 +31,15 @@
           "title": "Include Hidden",
           "label": "Include hidden files and directories",
           "description": "If enabled, the results will include hidden files and directories.",
+          "type": "checkbox",
+          "default": false,
+          "required": false
+        },
+        {
+          "name": "noIgnore",
+          "title": "Don't ignore files",
+          "label": "Don't use ignoring rules (WARNING)",
+          "description": "Sets '--no-ignore' flag to 'fd' when indexing. This option will dramatically increase indexing time. It is highly recomended to leave this option disabled!",
           "type": "checkbox",
           "default": false,
           "required": false

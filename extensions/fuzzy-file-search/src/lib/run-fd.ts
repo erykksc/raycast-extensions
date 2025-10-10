@@ -37,6 +37,7 @@ export async function runFd(
     includeOnlyFiles: boolean;
     includeHidden: boolean;
     followSymlinks: boolean;
+    noIgnore: boolean;
     abortController: React.RefObject<AbortController>;
   },
 ) {
@@ -56,6 +57,9 @@ export async function runFd(
   }
   if (args.followSymlinks) {
     optionalArgs = [...optionalArgs, "--follow"];
+  }
+  if (args.noIgnore) {
+    optionalArgs = [...optionalArgs, "--no-ignore"];
   }
 
   const out = fs.createWriteStream(args.outputFilename, { flags: "wx", signal: args.abortController.current.signal });

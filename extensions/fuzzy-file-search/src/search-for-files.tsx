@@ -16,10 +16,11 @@ import sanitizeFilename from "sanitize-filename";
 import { randomInt, randomUUID } from "crypto";
 
 type Prefs = {
-  includeDirectories: boolean;
+  includeOnlyFiles: boolean;
   includeHidden: boolean;
   ignoreSpacesInSearch: boolean;
   followSymlinks: boolean;
+  noIgnore: boolean;
   customSearchDirs: string;
 };
 
@@ -92,7 +93,7 @@ export default function Command() {
 
       await ensureFdIgnoreFileExists();
 
-      // Final file fzf is reading from
+      // Final file fzf is gonna read from
       const fdOutput = path.join(environment.supportPath, `fd-out-${sanitizeFilename(searchRoot)}.txt`);
 
       const toast = await showToast({
@@ -105,16 +106,17 @@ export default function Command() {
         toast.message = "creating index of files using fd";
       }
 
-      // File to write to during the indexing
+      // File to build the index in
       const fdOutputTemp = `${fdOutput}.${Date.now()}${randomInt(10000)}.temp`;
       try {
-        // Index files
+        // Run file indexing
         await runFd(fdPath, {
           searchDirs: searchRoot.split(" "),
           outputFilename: fdOutputTemp,
-          includeOnlyFiles: !prefs.includeDirectories,
+          includeOnlyFiles: prefs.includeOnlyFiles,
           includeHidden: prefs.includeHidden,
           followSymlinks: prefs.followSymlinks,
+          noIgnore: prefs.noIgnore,
           abortController: abortableFd,
         });
       } catch (err: any) {
@@ -173,6 +175,7 @@ export default function Command() {
               // It sends the kill signal when reaching 1000,
               // so results will be larger than 1000
               fzf.kill();
+              rl.close();
             } else {
               filteredResults.push(line);
             }
