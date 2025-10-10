@@ -79,7 +79,6 @@ export async function ensureFdCLI() {
       writer.on("error", reject);
       response.data.on("error", reject);
     });
-
     console.log("fd archive downloaded");
 
     await cliFileInfo.extract(fdCliArchive(), fdCliDirectory());

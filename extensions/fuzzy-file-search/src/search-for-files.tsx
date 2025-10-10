@@ -4,6 +4,7 @@ import { spawn } from "child_process";
 import path, { basename } from "path";
 import { useEffect, useRef, useState } from "react";
 import { ensureFdCLI } from "./lib/fd-downloader";
+import { ensureFdIgnoreFileExists, runFd } from "./lib/run-fd";
 import os from "os";
 import fs from "fs";
 import afs from "fs/promises";
@@ -89,41 +90,10 @@ export default function Command() {
       assert(searchRoot !== undefined);
       assert(fdPath !== undefined);
 
-      const ignoreFile = path.join(os.homedir(), ".config", "fd", "ignore");
-      if (!fs.existsSync(ignoreFile)) {
-        console.log(`creating default .fdignore file in: ${ignoreFile}`);
-        // Create directories
-        afs.mkdir(path.dirname(ignoreFile), { recursive: true });
-        const ignorePaths = [
-          "/nix/",
-          "/System/",
-          "/Library/",
-          "/private/",
-          "/usr/",
-          path.join(os.homedir(), "Library/*"),
-          path.join(os.homedir(), "!/Library/CloudStorage/"),
-          path.join(os.homedir(), "**", "*.photoslibrary/"),
-        ];
-        await afs.writeFile(ignoreFile, ignorePaths.join("\n"));
-      }
-
-      let optionalArgs: string[] = [];
-      if (!prefs.includeDirectories) {
-        optionalArgs = [...optionalArgs, "--type", "file"];
-      }
-      if (prefs.includeHidden) {
-        optionalArgs = [...optionalArgs, "--hidden"];
-      }
-      if (prefs.followSymlinks) {
-        optionalArgs = [...optionalArgs, "--follow"];
-      }
-
-      const searchDirs = searchRoot.split(" ");
+      await ensureFdIgnoreFileExists();
 
       // Final file fzf is reading from
       const fdOutput = path.join(environment.supportPath, `fd-out-${sanitizeFilename(searchRoot)}.txt`);
-      // File to write to during the indexing
-      const fdOutputTemp = `${fdOutput}.${Date.now()}${randomInt(10000)}.temp`;
 
       const toast = await showToast({
         title: "Indexing",
@@ -135,44 +105,34 @@ export default function Command() {
         toast.message = "creating index of files using fd";
       }
 
-      const outFD = fs.openSync(fdOutputTemp, "wx");
+      // File to write to during the indexing
+      const fdOutputTemp = `${fdOutput}.${Date.now()}${randomInt(10000)}.temp`;
       try {
-        const fd = spawn(fdPath, [...optionalArgs, "--print0", ".", ...searchDirs], {
-          stdio: ["ignore", outFD, "pipe"],
-          signal: abortableFd.current?.signal,
+        // Index files
+        await runFd(fdPath, {
+          searchDirs: searchRoot.split(" "),
+          outputFilename: fdOutputTemp,
+          includeOnlyFiles: !prefs.includeDirectories,
+          includeHidden: prefs.includeHidden,
+          followSymlinks: prefs.followSymlinks,
+          abortController: abortableFd,
         });
-
-        await new Promise<void>((resolve, reject) => {
-          let stderr = "";
-          fd.stderr?.on("data", (chunk) => {
-            stderr += chunk;
-          });
-
-          fd.on("error", () => {
-            console.log("aborting fd");
-            fs.rmSync(fdOutputTemp, { force: true });
-            reject("'fd' aborted");
-          });
-
-          fd.on("close", (code) => {
-            if (code === 0) {
-              resolve();
-            } else {
-              console.log("closing fd with code", code);
-              fs.rmSync(fdOutputTemp, { force: true });
-              reject(`Exit code of 'fd' = ${code}:\n${stderr}`);
-            }
-          });
-        });
-      } finally {
-        fs.closeSync(outFD);
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          console.warn(`fd indexing aborted for directories: ${searchRoot}`);
+          return;
+        }
+        console.error("fd returned error", err);
+        toast.style = Toast.Style.Failure;
+        toast.message = err;
+        throw err;
       }
-
-      toast.hide();
 
       console.log(`renaming ${basename(fdOutputTemp)} -> ${basename(fdOutput)}`);
       await afs.rename(fdOutputTemp, fdOutput);
       console.log(`finished renaming ${basename(fdOutputTemp)} -> ${basename(fdOutput)}`);
+      toast.hide();
+
       return { filepath: fdOutput, randomUUID: randomUUID() };
     },
     [searchRoot, fdPath],
