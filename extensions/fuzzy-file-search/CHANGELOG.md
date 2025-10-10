@@ -1,5 +1,10 @@
 # Fuzzy File Search Changelog
 
+## [Improvements] - {PR_MERGE_DATE}
+
+- Add noIgnore option to allow searching for all files with ignoring rules disabled
+- Fix a bug where fd was still indexing in the background when the extension was closed during indexing
+
 ## [Rework] - 2025-10-05
 
 - Use fzf CLI tool for fuzzy finding.
