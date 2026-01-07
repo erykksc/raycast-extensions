@@ -277,6 +277,7 @@ export default function Command() {
             actions={
               <ActionPanel>
                 <Action.Open title="Open" target={filepath} />
+                <Action.OpenWith title="Open With..." path={filepath} />{" "}
                 <Action.ShowInFinder title="Show in Finder" path={filepath} />
                 <Action.CopyToClipboard
                   title="Copy Path to Clipboard"
